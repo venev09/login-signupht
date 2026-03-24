@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+
 import AuthPage from "./auth-page.jsx";
+import HomePage from "./HomePage.jsx";
+
 
 function App() {
+    const token = localStorage.getItem("jwt_token");
+    if (token) {
+        return <HomePage />;
+    }
     return <AuthPage />;
 }
 

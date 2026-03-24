@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { signInWithGoogle, auth } from "./firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import HomePage from "./HomePage";
+import { signInWithGoogle } from "./firebase";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap');
@@ -49,6 +49,7 @@ export default function AuthPage() {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({ email: "", password: "", firstName: "", lastName: "", confirmPassword: "" });
+  const [token, setToken] = useState(() => localStorage.getItem("jwt_token") || "");
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -59,6 +60,9 @@ export default function AuthPage() {
     clearMessages();
     try {
       const result = await signInWithGoogle();
+      const firebaseToken = await result.user.getIdToken();
+      setToken(firebaseToken);
+      localStorage.setItem("jwt_token", firebaseToken);
       setSuccess(`Welcome, ${result.user.displayName}!`);
     } catch (err) {
       setError("Google sign-in failed. Try again.");
@@ -71,10 +75,21 @@ export default function AuthPage() {
     setLoading(true);
     clearMessages();
     try {
-      const result = await signInWithEmailAndPassword(auth, form.email, form.password);
-      setSuccess(`Welcome back, ${result.user.email}!`);
+      const res = await fetch("http://localhost:5000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess("Welcome back!");
+        setToken(data.token);
+        localStorage.setItem("jwt_token", data.token);
+      } else {
+        setError(data.error || "Login failed");
+      }
     } catch (err) {
-      setError("Invalid email or password.");
+      setError("Network error. Try again.");
     }
     setLoading(false);
   };
@@ -86,15 +101,33 @@ export default function AuthPage() {
     setLoading(true);
     clearMessages();
     try {
-      await createUserWithEmailAndPassword(auth, form.email, form.password);
-      setSuccess("Account created successfully!");
+      const res = await fetch("http://localhost:5000/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          firstName: form.firstName,
+          lastName: form.lastName
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess("Account created successfully!");
+        setToken(data.token);
+        localStorage.setItem("jwt_token", data.token);
+      } else {
+        setError(data.error || "Signup failed");
+      }
     } catch (err) {
-      if (err.code === "auth/email-already-in-use") setError("Email already in use.");
-      else setError("Something went wrong. Try again.");
+      setError("Network error. Try again.");
     }
     setLoading(false);
   };
 
+  if (token) {
+    return <HomePage />;
+  }
   return (
     <>
       <style>{styles}</style>
